@@ -1,10 +1,12 @@
-# e-rag
+# 🧠 e-rag
 
-Enhanced RAG — retrieval augmented generation with semantic context preservation.
+**Enhanced RAG** — retrieval augmented generation with semantic context preservation.
 
 Classic RAG treats chunks as isolated vectors. e-rag builds a semantic affinity graph between chunks and uses community detection to return coherent regions of knowledge — not isolated fragments.
 
-## The problem with classic RAG
+---
+
+## 🧱 The problem with classic RAG
 
 ```
 document: A → B → C → D  (sentences with dependencies)
@@ -12,34 +14,40 @@ classic:  {A}, {B}, {C}, {D}  (independent chunks)
 retrieval: returns C  →  but C without B makes no sense
 ```
 
-When you cut text into fixed-size chunks, you destroy the context that gives each piece meaning. The chunk is a brick, and the mortar — the semantic context — is lost.
+When you cut text into fixed-size chunks, you destroy the context that gives each piece meaning. **The chunk is a brick, and the mortar — the semantic context — is lost.**
 
-## How e-rag solves it
+---
 
-**Semantic chunking** — instead of fixed sizes, boundaries are detected by measuring semantic drift between sentences via a sliding window. Chunks are cut where ideas actually change.
+## ✨ How e-rag solves it
 
-**K-NN graph** — after embedding, each chunk connects to its K most semantically similar neighbors. The graph makes explicit what classic RAG leaves implicit.
+🔪 **Semantic chunking** — instead of fixed sizes, boundaries are detected by measuring semantic drift between sentences via a sliding window. Chunks are cut where ideas actually change.
 
-**Louvain community detection** — the graph's natural communities emerge without any arbitrary threshold. The algorithm finds the structure that already exists in the data.
+🕸️ **K-NN graph** — after embedding, each chunk connects to its K most semantically similar neighbors. The graph makes explicit what classic RAG leaves implicit.
 
-**Community-aware retrieval** — a query returns not just the nearest chunk, but the coherent semantic neighborhood it belongs to. The LLM receives context, not fragments.
+🔍 **Louvain community detection** — the graph's natural communities emerge without any arbitrary threshold. The algorithm finds the structure that already exists in the data.
+
+🎯 **Community-aware retrieval** — a query returns not just the nearest chunk, but the coherent semantic neighborhood it belongs to. The LLM receives context, not fragments.
 
 ```
 query → nearest chunk (anchor) → its community → ranked by relevance
 ```
 
-## Install
+---
+
+## 📦 Install
 
 ```bash
-go get github.com/mpsiqueira/e-rag
+go get github.com/marcoscarvalho04/e-rag
 ```
 
-Requires Go 1.22+.
+> Requires Go 1.22+
 
-## Usage
+---
+
+## 🚀 Usage
 
 ```go
-import "github.com/mpsiqueira/e-rag/pkg/erag"
+import "github.com/marcoscarvalho04/e-rag/pkg/erag"
 
 // define any embedding function
 embedder := func(texts []string) ([][]float32, error) {
@@ -60,7 +68,7 @@ for _, c := range result.Community {
 }
 ```
 
-### Persist and load
+### 💾 Persist and load
 
 ```go
 // save index to disk — embedding calls happen once, at index time
@@ -72,7 +80,7 @@ if err := idx.Save("knowledge.gob"); err != nil {
 idx, err := erag.Load("knowledge.gob", embedder)
 ```
 
-### Options
+### ⚙️ Options
 
 ```go
 idx, err := erag.New(docs, embedder,
@@ -82,17 +90,20 @@ idx, err := erag.New(docs, embedder,
 )
 ```
 
-`K` controls how many neighbors each chunk connects to in the graph. Higher values capture more relationships but increase indexing cost.
+| Option | Description | Default |
+|--------|-------------|---------|
+| `WithK(k)` | Neighbors per chunk in the graph. Higher = more relationships, higher indexing cost | `5` |
+| `WithWindowSize(n)` | Sentences averaged on each side of a boundary candidate. Larger = smoother detection | `3` |
+| `WithBreakThreshold(t)` | How sharp a semantic drop must be to become a chunk boundary. Higher = smaller chunks | `0.25` |
 
-`WindowSize` controls how many sentences on each side of a candidate boundary are averaged before computing similarity. Larger windows smooth out noise.
+---
 
-`BreakThreshold` controls how sharp a semantic drop must be to become a chunk boundary. Higher values produce smaller, more granular chunks.
+## 🔌 Embedder examples
 
-## Embedder examples
+e-rag is **embedder-agnostic**. Any function with the signature `func([]string) ([][]float32, error)` works.
 
-e-rag is embedder-agnostic. Any function with the signature `func([]string) ([][]float32, error)` works.
-
-**Voyage AI**
+<details>
+<summary><b>Voyage AI</b></summary>
 
 ```go
 func voyageEmbedder(texts []string) ([][]float32, error) {
@@ -100,25 +111,32 @@ func voyageEmbedder(texts []string) ([][]float32, error) {
     // model: voyage-3-lite
 }
 ```
+</details>
 
-**OpenAI**
+<details>
+<summary><b>OpenAI</b></summary>
 
 ```go
 func openAIEmbedder(texts []string) ([][]float32, error) {
     // model: text-embedding-3-small
 }
 ```
+</details>
 
-**Ollama (local)**
+<details>
+<summary><b>Ollama (local, zero cost)</b></summary>
 
 ```go
 func ollamaEmbedder(texts []string) ([][]float32, error) {
     // model: nomic-embed-text
-    // zero API cost, runs locally
+    // runs fully local, no API key needed
 }
 ```
+</details>
 
-## CLI tools
+---
+
+## 🛠️ CLI tools
 
 The repository includes two CLI tools as usage examples.
 
@@ -132,8 +150,10 @@ go run ./cmd/erag-index/ -input document.txt -output index.gob -k 5
 
 ```bash
 VOYAGE_API_KEY=your-key go run ./cmd/erag-serve/
+```
 
-# index documents
+```bash
+# create index
 curl -X POST http://localhost:8080/indexes/myindex \
   -H "Content-Type: application/json" \
   -d '{"documents": ["text one...", "text two..."], "k": 5}'
@@ -144,8 +164,6 @@ curl -X POST http://localhost:8080/indexes/myindex/search \
   -d '{"query": "your question", "top_k": 5}'
 ```
 
-Available endpoints:
-
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/health` | Health check |
@@ -154,11 +172,13 @@ Available endpoints:
 | `DELETE` | `/indexes/{name}` | Delete index |
 | `POST` | `/indexes/{name}/search` | Search index |
 
-The HTTP server is provided as a reference implementation. For production use, wrap the `pkg/erag` library directly in your application.
+> The HTTP server is a reference implementation. For production use, wrap `pkg/erag` directly in your application.
 
-## Performance
+---
 
-Benchmarks measured on AMD Ryzen 7 5700G, 512-dimension embeddings, `go test -bench -benchtime=3s`.
+## ⚡ Performance
+
+Benchmarks on AMD Ryzen 7 5700G, 512-dimension embeddings, `go test -bench -benchtime=3s`.
 
 **Indexing** (`New`) — runs once, offline:
 
@@ -169,7 +189,7 @@ Benchmarks measured on AMD Ryzen 7 5700G, 512-dimension embeddings, `go test -be
 | 100 | 15ms |
 | 500 | 126ms |
 
-Indexing is O(n²) due to K-NN graph construction. For corpora above ~10,000 chunks, consider pre-building the index offline. The graph construction is the target for future HNSW optimization.
+> Indexing is O(n²) due to K-NN graph construction. Suitable for corpora up to ~10,000 chunks. HNSW optimization is planned for larger corpora.
 
 **Retrieval** (`Search`) — runs on every query:
 
@@ -177,10 +197,8 @@ Indexing is O(n²) due to K-NN graph construction. For corpora above ~10,000 chu
 |----------------|---------|
 | 10 | 10µs |
 | 50 | 36µs |
-| 100 | 72µs |
+| 100 | **72µs** |
 | 500 | 242µs |
-
-Retrieval is linear with index size. At 100 chunks, **72µs per query** — fast enough that no result caching is needed for typical workloads.
 
 **Persistence:**
 
@@ -189,34 +207,36 @@ Retrieval is linear with index size. At 100 chunks, **72µs per query** — fast
 | Save (100 chunks) | ~2ms |
 | Load (100 chunks) | ~1.3ms |
 
-Cold start is under 2ms regardless of index size in typical corpora.
+---
 
-## How it compares
+## 🔬 How it compares
 
-| | Classic RAG | GraphRAG (Microsoft) | e-rag |
+| | Classic RAG | GraphRAG (Microsoft) | **e-rag** |
 |---|---|---|---|
-| Chunk boundary | Fixed size | Fixed size | Semantic (sliding window) |
-| Context preservation | None | LLM-generated metadata | Graph structure |
-| LLM calls at index time | None | O(n) — expensive | None |
-| Retrieval unit | Isolated chunk | Community | Community |
-| Cost | Low | High | Low |
+| Chunk boundary | Fixed size | Fixed size | ✅ Semantic |
+| Context preservation | ❌ None | LLM-generated | ✅ Graph structure |
+| LLM calls at index time | None | ❌ O(n) — expensive | ✅ None |
+| Retrieval unit | Isolated chunk | Community | ✅ Community |
+| Cost | Low | High | ✅ Low |
 
-GraphRAG uses an LLM to generate context descriptions for each chunk at indexing time. With n chunks, that means n LLM calls — which is expensive and slow. e-rag derives the same community structure mathematically from the embeddings themselves.
+> GraphRAG uses an LLM to generate context for each chunk at indexing time — that's n LLM calls for n chunks. e-rag derives the same community structure mathematically from the embeddings, with zero extra API cost.
 
-## Architecture
+---
+
+## 🏗️ Architecture
 
 ```
 documents
     ↓
-semantic chunking       sliding window over sentences detects topic shifts
+semantic chunking       sliding window detects topic shifts between sentences
     ↓
-embeddings              any model, one batch call per document set
+embeddings              any model — one batch call per document set
     ↓
 K-NN graph              each chunk connects to K nearest neighbors by cosine similarity
     ↓
-Louvain communities     natural clusters emerge without any arbitrary threshold
+Louvain communities     natural clusters emerge without arbitrary thresholds
     ↓
-persisted index         chunks + graph + communities serialized to disk
+persisted index         chunks + graph + communities serialized to disk (gob)
 
 query
     ↓
@@ -227,6 +247,8 @@ graph search            finds anchor chunk via cosine similarity
 community retrieval     returns anchor + semantic neighbors, ranked by relevance
 ```
 
-## License
+---
+
+## 📄 License
 
 MIT
