@@ -136,6 +136,35 @@ func ollamaEmbedder(texts []string) ([][]float32, error) {
 
 ---
 
+## 🔬 Comparison demo
+
+The `examples/comparison/` directory runs a side-by-side comparison between classic RAG and e-rag using the original RAG paper (Lewis et al., 2020) as corpus.
+
+```bash
+VOYAGE_API_KEY=your-key go run ./examples/comparison/
+```
+
+Sample output for the query *"how does index hot-swapping work without retraining?"*:
+
+```
+📦 CLASSIC RAG  (top-3 by cosine similarity)
+  [1] score=0.6356  Index Hot-Swapping  Updating the knowledge index...
+  [2] score=0.4128  Training Approach  The model is trained end-to-end...
+  [3] score=0.3362  Ablation Studies  Retrieval Learning  Freezing the retriever...
+
+🧠 E-RAG  (anchor + semantic community)
+  anchor  score=0.6356  community=1
+      Index Hot-Swapping  Updating the knowledge index...
+  community neighbors (same semantic region):
+    · score=0.4128  Training Approach  The model is trained end-to-end...
+    · score=0.3362  Ablation Studies  Retrieval Learning  Freezing the retriever...
+    · score=0.2990  The approach combines advantages of hybrid memory systems...
+```
+
+Both return the same anchor chunk. The difference: e-rag knows that anchor belongs to **community 1** — the semantic region covering how the model trains and behaves post-indexing. A follow-up query in the same session can navigate this community directly, and an LLM receives a coherent narrative region instead of isolated cosine-ranked fragments.
+
+---
+
 ## 🛠️ CLI tools
 
 The repository includes two CLI tools as usage examples.

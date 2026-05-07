@@ -1,0 +1,85 @@
+Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks
+
+Introduction
+
+Large pre-trained language models store factual knowledge within their parameters but struggle with precise knowledge access and manipulation. While these models achieve strong results on downstream tasks, their ability to access and precisely manipulate knowledge is still limited on knowledge-intensive work. The authors propose Retrieval-Augmented Generation (RAG), which combines parametric memory from pre-trained sequence-to-sequence models with non-parametric memory via dense vector indices of external knowledge sources.
+
+The RAG framework treats retrieved documents as latent variables, enabling end-to-end joint training of retrieval and generation components. Unlike prior work on task-specific retrieval systems, RAG provides a general-purpose approach applicable across multiple knowledge-intensive NLP tasks.
+
+Methodology
+
+Core Architecture
+
+RAG models consist of two primary components:
+
+Retriever (Dense Passage Retriever): A bi-encoder architecture using BERT to encode queries and documents, enabling efficient similarity-based retrieval via Maximum Inner Product Search. The retriever generates a distribution over retrieved passages given an input query.
+
+Generator (BART): A pre-trained sequence-to-sequence transformer with 400M parameters that generates output tokens conditioned on input and retrieved passages.
+
+Two Model Variants
+
+RAG-Sequence assumes the same retrieved document generates the entire output sequence. The probability is calculated by marginalizing over top-K documents. RAG-Sequence treats each document as independent evidence for generating the full output.
+
+RAG-Token allows different documents for each generated token, enabling content synthesis from multiple sources. Each output token can draw from a different retrieved document, making the model more flexible in combining information.
+
+Training Approach
+
+The model is trained end-to-end without direct supervision on document retrieval. Using input-output pairs, the system minimizes negative marginal log-likelihood via stochastic gradient descent. The document encoder remains fixed during training while the query encoder and generator are fine-tuned, reducing computational overhead compared to approaches requiring periodic index updates.
+
+Decoding Procedures
+
+For RAG-Token, standard beam search applies using the marginalized transition probabilities. RAG-Sequence requires custom decoding since likelihoods do not decompose per-token. The authors propose two approaches: Thorough Decoding runs beam search per document and computes probabilities for all generated hypotheses; Fast Decoding approximates by only considering hypotheses generated during beam search.
+
+Experiments and Results
+
+Open-Domain Question Answering
+
+RAG achieves state-of-the-art performance across four open-domain question answering datasets. On Natural Questions the model achieves 44.5% exact match. On TriviaQA it reaches 56.8%. On WebQuestions it achieves 68.0% exact match. On CuratedTrec the model scores 45.2%.
+
+The model surpasses both closed-book parametric-only approaches and retrieval-based extractive systems. Notably, RAG achieves 11.8% accuracy on Natural Questions cases where the answer does not appear verbatim in retrieved documents, demonstrating generation advantages over extraction-only approaches.
+
+Abstractive Question Answering
+
+On MS-MARCO NLG, RAG-Sequence outperforms the BART baseline by 2.6 BLEU and 2.6 ROUGE-L points despite not accessing gold passages provided during evaluation. Human evaluation confirms RAG generates more factually correct text than the parametric baseline.
+
+Jeopardy Question Generation
+
+For this challenging generation task requiring precise and factual statements, RAG-Token performs best with both automatic metrics and human evaluation. Human assessors found RAG more factual in 42.7% of cases compared to BART's 7.1%, with both models factual in an additional 17% of cases. Analysis reveals RAG-Token leverages different documents for different tokens, combining information from multiple sources to produce coherent factual outputs.
+
+Fact Verification (FEVER)
+
+RAG scores within 4.3% of state-of-the-art pipeline systems on 3-way classification without using any retrieval supervision signal. The model retrieves gold evidence articles in 90% of cases within the top-10 documents, showing strong retrieval quality.
+
+Generation Diversity
+
+RAG models demonstrate significantly higher generation diversity than BART alone. The ratio of distinct trigrams shows RAG-Sequence achieves 83.5% on MS-MARCO versus BART's 70.7%, indicating the retrieval component naturally promotes diverse and specific outputs by grounding generation in different retrieved documents.
+
+Ablation Studies
+
+Retrieval Learning
+
+Freezing the retriever during training substantially degrades performance across all tasks, confirming the importance of learned retrieval. When the retriever cannot adapt to the generator's needs, the overall system underperforms compared to jointly trained variants.
+
+Retriever Comparison
+
+Dense retrieval substantially outperforms BM25 word-overlap retrieval on most tasks. The exception is FEVER where entity-centric claims suit word-based matching. For semantic and paraphrastic queries, learned dense representations consistently outperform sparse retrieval methods.
+
+Index Hot-Swapping
+
+Updating the knowledge index to 2016 Wikipedia enables the model to answer questions about 2016 world leaders with 70% accuracy while performing poorly on mismatched time periods. This demonstrates that factual knowledge can be updated without retraining the model parameters, simply by replacing the document index.
+
+Document Count Effects
+
+Retrieving additional documents monotonically improves RAG-Sequence performance but shows diminishing returns for RAG-Token beyond 10 documents. The optimal number of retrieved documents depends on the task and the model variant being used.
+
+Discussion and Impact
+
+RAG addresses key limitations of parametric-only models by providing interpretable and fact-grounded generation with updatable knowledge. The approach combines advantages of hybrid memory systems without requiring extensive architectural innovation or specialized pre-training objectives.
+
+The authors acknowledge potential risks including generating misleading content and amplifying biases present in Wikipedia. The grounding in factual sources mitigates some concerns compared to purely parametric models, though external knowledge sources inevitably contain inaccuracies and gaps.
+
+The model achieves strong performance with 626 million trainable parameters, substantially fewer than T5-11B with 11 billion parameters, suggesting hybrid retrieval-augmented approaches offer significant computational efficiency advantages over scaling parametric memory alone.
+
+Conclusion
+
+RAG successfully brings retrieval augmentation to sequence-to-sequence generation across diverse knowledge-intensive tasks. By combining pre-trained parametric and non-parametric memories with end-to-end learning, the approach achieves state-of-the-art results on open-domain question answering while generating more factual, specific, and diverse language on generation tasks compared to purely parametric baselines. The ability to update knowledge by swapping the index without retraining makes RAG particularly well-suited for applications where factual accuracy and knowledge currency are critical requirements.

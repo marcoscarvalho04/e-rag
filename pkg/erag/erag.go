@@ -35,6 +35,9 @@ import (
 	"github.com/mpsiqueira/e-rag/internal/retriever"
 )
 
+// retrieverResult é um alias interno para evitar repetição de tipo.
+type retrieverResult = retriever.SearchResult
+
 // Embedder é a função responsável por transformar textos em vetores.
 // Qualquer modelo de embedding pode ser usado — local ou via API.
 type Embedder func(texts []string) ([][]float32, error)
@@ -180,6 +183,20 @@ func (idx *Index) Save(path string) error {
 	return idx.internal.Save(path)
 }
 
+// SearchByVector executa o retrieval com um embedding já computado.
+// Útil quando o embedding da query já foi calculado externamente,
+// evitando uma chamada extra ao embedder.
+func (idx *Index) SearchByVector(queryVec []float32, topK int) (*Result, error) {
+	r, err := idx.internal.SearchByVector(queryVec, topK)
+	if err != nil {
+		return nil, err
+	}
+	if r == nil {
+		return nil, nil
+	}
+	return toResult(r), nil
+}
+
 // Search encontra o chunk mais relevante para a query e retorna
 // o chunk âncora junto com os vizinhos semânticos da sua comunidade.
 //
@@ -193,7 +210,10 @@ func (idx *Index) Search(query string, topK int) (*Result, error) {
 	if r == nil {
 		return nil, nil
 	}
+	return toResult(r), nil
+}
 
+func toResult(r *retrieverResult) *Result {
 	result := &Result{
 		Anchor: Chunk{
 			Text:        r.Anchor.Text,
@@ -202,7 +222,6 @@ func (idx *Index) Search(query string, topK int) (*Result, error) {
 		},
 		Community: make([]Chunk, len(r.Community)),
 	}
-
 	for i, c := range r.Community {
 		result.Community[i] = Chunk{
 			Text:        c.Text,
@@ -210,6 +229,5 @@ func (idx *Index) Search(query string, topK int) (*Result, error) {
 			CommunityID: c.CommunityID,
 		}
 	}
-
-	return result, nil
+	return result
 }
