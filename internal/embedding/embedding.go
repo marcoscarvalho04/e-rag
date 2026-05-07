@@ -68,8 +68,8 @@ type voyageResponse struct {
 }
 
 func (c *Client) embedBatch(texts []string) ([][]float32, error) {
-	const maxRetries = 4
-	wait := 5 * time.Second
+	const maxRetries = 7
+	wait := 20 * time.Second
 
 	for attempt := range maxRetries {
 		result, err := c.doRequest(texts)
@@ -79,7 +79,7 @@ func (c *Client) embedBatch(texts []string) ([][]float32, error) {
 		if result != nil {
 			return result, nil
 		}
-		// 429: espera com backoff exponencial (5s, 10s, 20s, 40s)
+		// 429: backoff exponencial (20s, 40s, 80s, 160s, 320s, 640s)
 		if attempt < maxRetries-1 {
 			fmt.Fprintf(os.Stderr, "rate limit, aguardando %v...\n", wait)
 			time.Sleep(wait)
