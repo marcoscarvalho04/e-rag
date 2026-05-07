@@ -136,32 +136,70 @@ func ollamaEmbedder(texts []string) ([][]float32, error) {
 
 ---
 
+## 🎯 Live showcase — where classic RAG breaks
+
+The `examples/showcase/` directory indexes **three completely different domains** together — an ML paper, a sports science text, and a finance document — then runs ambiguous queries that could plausibly belong to any of them.
+
+```bash
+VOYAGE_API_KEY=your-key ANTHROPIC_API_KEY=your-key go run ./examples/showcase/
+```
+
+### The smoking gun
+
+Query: **"what is the best long-term strategy to maximize performance?"**
+
+The word *performance* appears in all three domains with incompatible meanings. Here is what each approach retrieves and what Claude generates from that context:
+
+```
+📦 CLASSIC RAG — top-3 by cosine similarity
+
+  [1] [Finance / Index Funds]    score=0.5738
+      Long-Term Strategy and Compound Performance — Index investing is
+      fundamentally a long-term strategy...
+
+  [2] [Finance / Index Funds]    score=0.3968
+      The model for long-term wealth accumulation through index funds
+      requires discipline during periods of poor performance...
+
+  [3] [Sports / Periodization]   score=0.3691
+      Periodization as an Optimization Model — Modern sports science
+      views periodization as an optimization model...
+```
+
+```
+🧠 E-RAG — anchor + semantic community
+
+  anchor  [Finance / Index Funds]  score=0.5738  community=2
+          Long-Term Strategy and Compound Performance...
+  community:
+    · [Finance / Index Funds]  score=0.3968  The model for long-term wealth...
+    · [Finance / Index Funds]  score=0.3652  Risk Management and Portfolio...
+    · [Finance / Index Funds]  score=0.3216  Index Funds and Portfolio Management...
+```
+
+Classic RAG scores by cosine and picks up a sports chunk as result #3 — it has no way to know the query already landed in a financial context. E-rag's Louvain communities isolated the finance domain completely: community 2 contains only finance chunks.
+
+### LLM answers with each context
+
+**With Classic RAG context** (mixed finance + sports):
+
+> *"The best long-term strategy to maximize performance **depends on the domain**. For index investing, it involves maintaining a globally diversified portfolio... For athletic performance, there is no universal solution — successful coaches develop individualized periodization models..."*
+
+**With e-rag context** (coherent finance community):
+
+> *"The best long-term strategy to maximize performance is to maintain a globally diversified portfolio of index funds across asset classes, geographies, and time horizons. This requires discipline to avoid trading during market downturns, as investors who sell during poor performance lock in losses and forfeit subsequent recoveries. Regular rebalancing maintains target allocations, allowing compound growth to operate uninterrupted over multi-decade horizons."*
+
+Classic RAG handed the LLM an incoherent context — two incompatible domains in the same prompt — and the model did the only reasonable thing: hedge. E-rag handed it a coherent semantic community and the model delivered a precise, actionable answer.
+
+---
+
 ## 🔬 Comparison demo
 
-The `examples/comparison/` directory runs a side-by-side comparison between classic RAG and e-rag using the original RAG paper (Lewis et al., 2020) as corpus.
+The `examples/comparison/` directory runs a focused retrieval comparison using the original RAG paper (Lewis et al., 2020) as a single-domain corpus.
 
 ```bash
 VOYAGE_API_KEY=your-key go run ./examples/comparison/
 ```
-
-Sample output for the query *"how does index hot-swapping work without retraining?"*:
-
-```
-📦 CLASSIC RAG  (top-3 by cosine similarity)
-  [1] score=0.6356  Index Hot-Swapping  Updating the knowledge index...
-  [2] score=0.4128  Training Approach  The model is trained end-to-end...
-  [3] score=0.3362  Ablation Studies  Retrieval Learning  Freezing the retriever...
-
-🧠 E-RAG  (anchor + semantic community)
-  anchor  score=0.6356  community=1
-      Index Hot-Swapping  Updating the knowledge index...
-  community neighbors (same semantic region):
-    · score=0.4128  Training Approach  The model is trained end-to-end...
-    · score=0.3362  Ablation Studies  Retrieval Learning  Freezing the retriever...
-    · score=0.2990  The approach combines advantages of hybrid memory systems...
-```
-
-Both return the same anchor chunk. The difference: e-rag knows that anchor belongs to **community 1** — the semantic region covering how the model trains and behaves post-indexing. A follow-up query in the same session can navigate this community directly, and an LLM receives a coherent narrative region instead of isolated cosine-ranked fragments.
 
 ---
 
