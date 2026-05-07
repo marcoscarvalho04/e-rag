@@ -1,0 +1,51 @@
+# Version control
+.git
+.gitignore
+.gitattributes
+
+# Docker files (not needed in build context)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Secrets — never send to build daemon
+.env
+*.env
+secrets/
+
+# Editor and OS artifacts
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Go test and coverage artifacts
+*_test.go
+testdata/
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Go build cache
+/vendor/
+
+# CI/CD config
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# Documentation
+*.md
+LICENSE
+docs/
+
+# Local index data (never bake indexes into the image)
+indexes/
+*.gob
+
+# Temporary files
+tmp/
+temp/

@@ -1,0 +1,62 @@
+# syntax=docker/dockerfile:1.7
+
+# ─────────────────────────────────────────────
+# Stage 1: Build
+# ─────────────────────────────────────────────
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /build
+
+# Download dependencies first for cache efficiency
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source and build static binary
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags="-s -w" \
+    -o /out/erag-index ./cmd/erag-index
+
+# ─────────────────────────────────────────────
+# Stage 2: Runtime filesystem scaffolding
+# ─────────────────────────────────────────────
+FROM alpine:3.19 AS runtime-base
+
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -g 10001 -S appgroup \
+    && adduser  -u 10001 -S appuser -G appgroup \
+    # /data is the working directory for volume-mounted input/output files
+    && mkdir -p /data \
+    && chown 10001:10001 /data
+
+# ─────────────────────────────────────────────
+# Stage 3: Final (distroless static)
+# ─────────────────────────────────────────────
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL org.opencontainers.image.title="erag-index" \
+      org.opencontainers.image.source="https://github.com/marcoscarvalho04/e-rag" \
+      org.opencontainers.image.description="e-rag CLI indexing tool"
+
+# TLS roots and timezone data
+COPY --from=runtime-base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=runtime-base /usr/share/zoneinfo                /usr/share/zoneinfo
+
+# passwd/group for named user
+COPY --from=runtime-base /etc/passwd /etc/passwd
+COPY --from=runtime-base /etc/group  /etc/group
+
+# Working directory for input/output files (mount host paths here)
+COPY --from=runtime-base --chown=10001:10001 /data /data
+
+# Application binary
+COPY --from=builder --chown=10001:10001 /out/erag-index /usr/local/bin/erag-index
+
+USER 10001:10001
+
+WORKDIR /data
+
+# VOYAGE_API_KEY must be injected at runtime — never baked into the image
+# Usage: docker run --rm -v $(pwd):/data erag-index -input /data/docs -output /data/index.gob -k 5
+
+ENTRYPOINT ["/usr/local/bin/erag-index"]

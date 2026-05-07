@@ -1,0 +1,68 @@
+# syntax=docker/dockerfile:1.7
+
+# ─────────────────────────────────────────────
+# Stage 1: Build
+# ─────────────────────────────────────────────
+FROM golang:1.22-alpine AS builder
+
+WORKDIR /build
+
+# Download dependencies first for cache efficiency
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source and build static binary
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+    go build -trimpath -ldflags="-s -w" \
+    -o /out/erag-serve ./cmd/erag-serve
+
+# ─────────────────────────────────────────────
+# Stage 2: Runtime filesystem scaffolding
+# ─────────────────────────────────────────────
+FROM alpine:3.19 AS runtime-base
+
+RUN apk add --no-cache ca-certificates tzdata \
+    && addgroup -g 10001 -S appgroup \
+    && adduser  -u 10001 -S appuser -G appgroup \
+    # Create writable indexes directory owned by appuser
+    && mkdir -p /indexes \
+    && chown 10001:10001 /indexes
+
+# ─────────────────────────────────────────────
+# Stage 3: Final (distroless static)
+# ─────────────────────────────────────────────
+FROM gcr.io/distroless/static-debian12:nonroot
+
+LABEL org.opencontainers.image.title="erag-serve" \
+      org.opencontainers.image.source="https://github.com/marcoscarvalho04/e-rag" \
+      org.opencontainers.image.description="e-rag HTTP server"
+
+# TLS roots and timezone data
+COPY --from=runtime-base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=runtime-base /usr/share/zoneinfo                /usr/share/zoneinfo
+
+# passwd/group for named user
+COPY --from=runtime-base /etc/passwd /etc/passwd
+COPY --from=runtime-base /etc/group  /etc/group
+
+# Writable indexes directory with correct ownership
+COPY --from=runtime-base --chown=10001:10001 /indexes /indexes
+
+# Application binary
+COPY --from=builder --chown=10001:10001 /out/erag-serve /usr/local/bin/erag-serve
+
+USER 10001:10001
+
+# Runtime environment defaults — override at deploy time
+ENV ERAG_ADDR=":8080" \
+    ERAG_INDEX_DIR="/indexes" \
+    ERAG_MAX_INDEXES="10"
+# VOYAGE_API_KEY is intentionally NOT set here; must be injected at runtime
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD ["/usr/local/bin/erag-serve", "-healthcheck"]
+
+ENTRYPOINT ["/usr/local/bin/erag-serve"]

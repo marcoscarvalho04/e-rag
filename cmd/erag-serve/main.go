@@ -17,6 +17,15 @@ import (
 )
 
 func main() {
+	// usado pelo HEALTHCHECK do Docker — sem curl no distroless
+	if len(os.Args) == 2 && os.Args[1] == "-healthcheck" {
+		resp, err := http.Get("http://localhost" + envOr("ERAG_ADDR", ":8080") + "/health")
+		if err != nil || resp.StatusCode != http.StatusOK {
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
 	config.Load(".env")
 
 	apiKey := os.Getenv("VOYAGE_API_KEY")

@@ -1,0 +1,65 @@
+services:
+  erag-serve:
+    build:
+      context: .
+      dockerfile: Dockerfile.serve
+    image: erag-serve:latest
+    container_name: erag-serve
+    restart: unless-stopped
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      ERAG_ADDR: ":8080"
+      ERAG_INDEX_DIR: "/indexes"
+      ERAG_MAX_INDEXES: "${ERAG_MAX_INDEXES:-10}"
+      # VOYAGE_API_KEY is loaded from .env file (see env_file below)
+      VOYAGE_API_KEY: "${VOYAGE_API_KEY}"
+
+    env_file:
+      - .env
+
+    volumes:
+      - erag-indexes:/indexes
+
+    networks:
+      - erag-net
+
+    security_opt:
+      - no-new-privileges:true
+
+    read_only: true
+    tmpfs:
+      - /tmp
+
+    cap_drop:
+      - ALL
+
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/erag-serve", "-healthcheck"]
+      interval: 30s
+      timeout: 10s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  erag-indexes:
+    driver: local
+    labels:
+      com.erag.description: "Persistent storage for .gob index files"
+
+networks:
+  erag-net:
+    driver: bridge
+    labels:
+      com.erag.description: "Internal network for e-rag services"
