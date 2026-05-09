@@ -1,7 +1,9 @@
 package graph
 
 import (
+	"fmt"
 	"math"
+	"math/rand"
 	"testing"
 )
 
@@ -108,4 +110,59 @@ func TestCosineSimilarity_Sanity(t *testing.T) {
 	if got := cosineSimilarity(a, b); math.Abs(float64(got)) > 1e-6 {
 		t.Errorf("ortogonais: esperava 0.0, got %f", got)
 	}
+}
+
+// BenchmarkBuild mede apenas graph.Build, isolado do chunker e embedder.
+// Permite ver o custo real do HNSW em função de n.
+func BenchmarkBuild(b *testing.B) {
+	sizes := []int{100, 500, 1000, 2000, 5000}
+	for _, n := range sizes {
+		embs := makeRandomEmbeddings(n, 512)
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			b.ResetTimer()
+			for range b.N {
+				g, err := Build(embs, 5)
+				if err != nil {
+					b.Fatal(err)
+				}
+				_ = g
+			}
+		})
+	}
+}
+
+func BenchmarkSearch_Graph(b *testing.B) {
+	sizes := []int{100, 500, 1000, 5000}
+	query := makeRandomEmbeddings(1, 512)[0]
+	for _, n := range sizes {
+		embs := makeRandomEmbeddings(n, 512)
+		g, _ := Build(embs, 5)
+		b.Run(fmt.Sprintf("n=%d", n), func(b *testing.B) {
+			b.ResetTimer()
+			for range b.N {
+				_ = g.Search(query, 5)
+			}
+		})
+	}
+}
+
+func makeRandomEmbeddings(n, dim int) [][]float32 {
+	// seed fixo para reprodutibilidade
+	rng := rand.New(rand.NewSource(42))
+	embs := make([][]float32, n)
+	for i := range embs {
+		v := make([]float32, dim)
+		var norm float32
+		for j := range v {
+			x := float32(rng.NormFloat64())
+			v[j] = x
+			norm += x * x
+		}
+		norm = float32(1.0 / float64(norm))
+		for j := range v {
+			v[j] *= norm
+		}
+		embs[i] = v
+	}
+	return embs
 }

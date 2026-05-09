@@ -245,34 +245,36 @@ curl -X POST http://localhost:8080/indexes/myindex/search \
 
 ## ⚡ Performance
 
-Benchmarks on AMD Ryzen 7 5700G, 512-dimension embeddings, `go test -bench -benchtime=3s`.
+Benchmarks on AMD Ryzen 7 5700G, 512-dimension embeddings, `go test -bench -benchtime=2s`.
 
-**Indexing** (`New`) — runs once, offline:
+**Indexing** (`graph.Build`) — runs once, offline:
 
-| Documents | Time |
-|-----------|------|
-| 10 | 0.5ms |
-| 50 | 5ms |
-| 100 | 15ms |
-| 500 | 126ms |
+| Chunks | Time | Note |
+|--------|------|------|
+| 100 | 22ms | |
+| 500 | 337ms | |
+| 1,000 | 1.06s | |
+| 2,000 | 2.96s | |
+| 5,000 | **10.8s** | brute-force would take ~12.6s here |
+| 50,000 | ~3min (est.) | brute-force would take ~20+ hours |
 
-> Indexing is O(n²) due to K-NN graph construction. Suitable for corpora up to ~10,000 chunks. HNSW optimization is planned for larger corpora.
+> Indexing uses HNSW (O(n log n)). The constant-factor overhead means HNSW is slightly slower than brute-force below ~5,000 chunks, but removes the hard wall that made large corpora impractical. Indexing happens once; the cost is amortized.
 
 **Retrieval** (`Search`) — runs on every query:
 
 | Indexed chunks | Latency |
 |----------------|---------|
-| 10 | 10µs |
-| 50 | 36µs |
-| 100 | **72µs** |
-| 500 | 242µs |
+| 100 | 86µs |
+| 500 | 316µs |
+| 1,000 | 432µs |
+| 5,000 | **786µs** |
 
 **Persistence:**
 
 | Operation | Time |
 |-----------|------|
 | Save (100 chunks) | ~2ms |
-| Load (100 chunks) | ~1.3ms |
+| Load (100 chunks) | ~23ms (includes HNSW rebuild) |
 
 ---
 
