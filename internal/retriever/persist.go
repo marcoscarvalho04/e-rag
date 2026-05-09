@@ -61,6 +61,9 @@ func Load(path string, embedder func([]string) ([][]float32, error)) (*Index, er
 		Nodes: snap.GraphNodes,
 		Edges: snap.GraphEdges,
 	}
+	if err := g.RebuildIndex(); err != nil {
+		return nil, fmt.Errorf("reconstruindo índice HNSW: %w", err)
+	}
 
 	comm := &community.Result{
 		NodeCommunity: snap.NodeCommunity,

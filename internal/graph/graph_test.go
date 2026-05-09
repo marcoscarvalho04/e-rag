@@ -102,12 +102,10 @@ func TestBuild_NoSelfLoops(t *testing.T) {
 func TestCosineSimilarity_Sanity(t *testing.T) {
 	a := []float32{1, 0}
 	b := []float32{0, 1}
-	dims := 2
-
-	if got := cosineSimilarity(a, a, dims); math.Abs(float64(got-1.0)) > 1e-6 {
+	if got := cosineSimilarity(a, a); math.Abs(float64(got-1.0)) > 1e-6 {
 		t.Errorf("idênticos: esperava 1.0, got %f", got)
 	}
-	if got := cosineSimilarity(a, b, dims); math.Abs(float64(got)) > 1e-6 {
+	if got := cosineSimilarity(a, b); math.Abs(float64(got)) > 1e-6 {
 		t.Errorf("ortogonais: esperava 0.0, got %f", got)
 	}
 }
