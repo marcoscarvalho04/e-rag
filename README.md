@@ -138,30 +138,30 @@ func ollamaEmbedder(texts []string) ([][]float32, error) {
 
 ## 🎯 Live showcase — where classic RAG breaks
 
-The `examples/showcase/` directory indexes **three completely different domains** together — an ML paper, a sports science text, and a finance document — then runs ambiguous queries that could plausibly belong to any of them.
+The `examples/showcase/` directory indexes **six completely different domains** together — ML, sports science, finance, climate science, medicine, and software architecture — then runs queries whose keywords appear in every domain with incompatible meanings.
 
 ```bash
 VOYAGE_API_KEY=your-key ANTHROPIC_API_KEY=your-key go run ./examples/showcase/
 ```
 
-### The smoking gun
+69 chunks. 6 domains. Louvain detects a separate community for each. The queries below use words like *model*, *parameters*, *training*, *index*, *retrieval*, and *adaptation* — all present in every domain simultaneously.
 
-Query: **"what is the best long-term strategy to maximize performance?"**
+---
 
-The word *performance* appears in all three domains with incompatible meanings. Here is what each approach retrieves and what Claude generates from that context:
+### Query 1 — "how does the model adapt its parameters over time?"
 
 ```
 📦 CLASSIC RAG — top-3 by cosine similarity
 
-  [1] [Finance / Index Funds]    score=0.5738
-      Long-Term Strategy and Compound Performance — Index investing is
-      fundamentally a long-term strategy...
+  [1] [Sports / Periodization]   score=0.5274
+      When adaptation occurs and progress ceases, a change to one or
+      more training variables is required...
 
-  [2] [Finance / Index Funds]    score=0.3968
-      The model for long-term wealth accumulation through index funds
-      requires discipline during periods of poor performance...
+  [2] [Climate Science]          score=0.5047
+      Model Limitations and Adaptation Scenarios — While large-scale
+      models remain essential for comprehensive climate analysis...
 
-  [3] [Sports / Periodization]   score=0.3691
+  [3] [Sports / Periodization]   score=0.5005
       Periodization as an Optimization Model — Modern sports science
       views periodization as an optimization model...
 ```
@@ -169,27 +169,74 @@ The word *performance* appears in all three domains with incompatible meanings. 
 ```
 🧠 E-RAG — anchor + semantic community
 
-  anchor  [Finance / Index Funds]  score=0.5738  community=2
-          Long-Term Strategy and Compound Performance...
-  community:
-    · [Finance / Index Funds]  score=0.3968  The model for long-term wealth...
-    · [Finance / Index Funds]  score=0.3652  Risk Management and Portfolio...
-    · [Finance / Index Funds]  score=0.3216  Index Funds and Portfolio Management...
+  anchor  [Sports / Periodization]  score=0.5274  community=1
+          When adaptation occurs and progress ceases...
+  community (all Sports):
+    · score=0.5005  Periodization as an Optimization Model...
+    · score=0.4901  Periodization models account for these different timescales...
+    · score=0.4359  If it comes too late, detraining occurs and the adaptation is lost...
 ```
 
-Classic RAG scores by cosine and picks up a sports chunk as result #3 — it has no way to know the query already landed in a financial context. E-rag's Louvain communities isolated the finance domain completely: community 2 contains only finance chunks.
+Classic RAG mixed Sports and Climate in the same context. E-rag locked onto community 1 (Sports) and kept it clean.
 
-### LLM answers with each context
+**Classic RAG answer** (Sports + Climate mixed):
+> *"The model adapts its parameters through constant monitoring, data retrieval, and parameter adjustment throughout the training cycle... coaches act as optimizers adjusting parameters across the training hierarchy to converge on peak performance."*
 
-**With Classic RAG context** (mixed finance + sports):
+**E-rag answer** (Sports community only):
+> *"The model adapts parameters through constant monitoring and real-time adjustments. When adaptation occurs and progress ceases, changes to one or more training variables are required to drive further improvement. The model accounts for different adaptation timescales — neural adaptations within weeks, muscular adaptations over months, cardiovascular adaptations over months to years — by sequencing training phases systematically."*
 
-> *"The best long-term strategy to maximize performance **depends on the domain**. For index investing, it involves maintaining a globally diversified portfolio... For athletic performance, there is no universal solution — successful coaches develop individualized periodization models..."*
+The e-rag answer surfaced the timescale detail (neural/muscular/cardiovascular) that lived in the community but not in the classic top-3.
 
-**With e-rag context** (coherent finance community):
+---
 
-> *"The best long-term strategy to maximize performance is to maintain a globally diversified portfolio of index funds across asset classes, geographies, and time horizons. This requires discipline to avoid trading during market downturns, as investors who sell during poor performance lock in losses and forfeit subsequent recoveries. Regular rebalancing maintains target allocations, allowing compound growth to operate uninterrupted over multi-decade horizons."*
+### Query 2 — "what is the best long-term strategy to maximize performance?"
 
-Classic RAG handed the LLM an incoherent context — two incompatible domains in the same prompt — and the model did the only reasonable thing: hedge. E-rag handed it a coherent semantic community and the model delivered a precise, actionable answer.
+```
+📦 CLASSIC RAG — top-3 by cosine similarity
+
+  [1] [Finance / Index Funds]    score=0.5738
+      Long-Term Strategy and Compound Performance...
+
+  [2] [Finance / Index Funds]    score=0.3968
+      The model for long-term wealth accumulation...
+
+  [3] [Sports / Periodization]   score=0.3691
+      Periodization as an Optimization Model...
+```
+
+```
+🧠 E-RAG — anchor + semantic community
+
+  anchor  [Finance / Index Funds]  score=0.5738  community=2
+  community (all Finance):
+    · [Finance]  score=0.3968  The model for long-term wealth accumulation...
+    · [Finance]  score=0.3652  Risk Management and Portfolio Optimization...
+    · [Finance]  score=0.3216  Index Funds and Portfolio Management...
+```
+
+**Classic RAG answer** (Finance + Sports mixed):
+> *"The best long-term strategy **depends on the domain**. For index investing, it involves a globally diversified portfolio... For athletic performance, there is no universal solution — successful coaches develop individualized periodization models..."*
+
+**E-rag answer** (Finance community only):
+> *"Maintain a globally diversified portfolio of index funds across asset classes, geographies, and time horizons. This requires discipline to avoid trading during market downturns — investors who sell during poor performance lock in losses and forfeit subsequent recoveries. Regular rebalancing maintains target allocations, allowing compound growth to operate uninterrupted over multi-decade horizons."*
+
+Classic RAG handed the LLM an incoherent context and the model hedged. E-rag delivered a coherent community and the model answered precisely.
+
+---
+
+### Query 3 — "how is the index structured for efficient retrieval?"
+
+```
+📦 CLASSIC RAG — top-3 by cosine similarity        🧠 E-RAG — community=6
+
+  [1] [Software Architecture]  score=0.6586         anchor  [Software Architecture]
+  [2] [Software Architecture]  score=0.6010         community (all Software):
+  [3] [Software Architecture]  score=0.5915           · Performance, Indexing, and Retrieval...
+                                                       · Architectural synthesis and design...
+                                                       · Data models and access patterns...
+```
+
+Both retrieved Software Architecture chunks — the signal was unambiguous. Both LLM answers were precise and equivalent. This is the honest case: **e-rag doesn't improve on a strong signal, it protects against a weak one.**
 
 ---
 
