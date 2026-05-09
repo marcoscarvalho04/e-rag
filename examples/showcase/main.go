@@ -40,14 +40,19 @@ var corpora = []corpus{
 	{"ML / RAG Paper", "rag_paper.txt"},
 	{"Sports / Periodization", "sports_training.txt"},
 	{"Finance / Index Funds", "finance_index.txt"},
+	{"Climate Science", "climate_models.txt"},
+	{"Medicine / Clinical Trials", "clinical_trials.txt"},
+	{"Software Architecture", "software_architecture.txt"},
 }
 
-// Queries are intentionally ambiguous: "training", "model", "performance",
-// "index", and "parameters" appear in all three domains with different meanings.
+// Queries are maximally ambiguous across all 6 domains.
+// Every keyword ("model", "parameters", "performance", "training",
+// "index", "retrieval", "adaptation") appears in multiple domains
+// with completely different meanings.
 var queries = []string{
-	"how do training cycles affect performance output?",
-	"what is the best long-term strategy to maximize performance?",
-	"how does the model adapt when performance degrades?",
+	"how does the model adapt its parameters over time?",
+	"what training approach leads to the best long-term performance?",
+	"how is the index structured for efficient retrieval?",
 }
 
 func main() {
